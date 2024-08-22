@@ -153,6 +153,7 @@ def show_whole_view():
     <style>
     [data-testid="stMetricValue"] {
         font-size: 18px;
+        color: aquamarine;
     }
     [data-testid="stMetric"] {
         padding: 0px;
@@ -182,7 +183,7 @@ def show_whole_view():
                 vegCols = st.columns(6)
                 if vegCols[0].button(veg, key=veg):
                     st.session_state.selected_vegetable = veg
-                    st.experimental_rerun()
+                    st.rerun()
 
                 for i, market in enumerate(markets):  # Displaying the market values
                     df = dataframes[veg]
@@ -220,7 +221,7 @@ def show_whole_view():
         for idx, market in enumerate(visible_markets):
             if marketCol[idx % 3].button(market, key=market):
                 st.session_state.selected_market = market
-                st.experimental_rerun()
+                st.rerun()
 
 # Show the selected view
 if view_selection == "Filter View":
