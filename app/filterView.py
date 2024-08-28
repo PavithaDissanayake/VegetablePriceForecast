@@ -1,4 +1,5 @@
 import streamlit as st
+import altair as alt
 import pandas as pd
 import altair as alt
 
@@ -57,12 +58,12 @@ def show_filter_view(today, dataframes, vegetables):
     # Selecting the market
     market = col2.multiselect('Select market', options=list(dataframe.columns[1:]), default=list(dataframe.columns[1:]))
 
-    if isinstance(market, list):
+    if len(market) > 1:
         chart_data = filtered_table.melt(id_vars=['Date'], value_vars=market, var_name='Market', value_name='Price')
         tooltip = ['Date:T', 'Market:N', 'Price:Q']
         legend = alt.Legend(title=None)
     else:
-        chart_data = filtered_table[['Date', market]].rename(columns={market: 'Price'})
+        chart_data = filtered_table.melt(id_vars=['Date'], value_vars=market, var_name='Market', value_name='Price')
         tooltip = ['Date:T', 'Price:Q']
         legend = None
 
@@ -74,7 +75,7 @@ def show_filter_view(today, dataframes, vegetables):
     past_chart = alt.Chart(past_data).mark_line().encode(
         x='Date:T',
         y=alt.Y('Price:Q', title='Price (Rs.)'),
-        color='Market:N',
+        color=alt.Color('Market:N', legend=legend),
         tooltip=tooltip
     )
 
@@ -82,7 +83,7 @@ def show_filter_view(today, dataframes, vegetables):
     future_chart = alt.Chart(future_data).mark_line(strokeDash=[5, 3]).encode(
         x='Date:T',
         y=alt.Y('Price:Q', title='Price (Rs.)'),
-        color='Market:N',
+        color=alt.Color('Market:N', legend=legend),
         tooltip=tooltip
     )
 
