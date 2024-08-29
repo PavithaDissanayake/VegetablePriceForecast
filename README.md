@@ -13,7 +13,7 @@ This project forecasts vegetable prices across various markets in Sri Lanka usin
 - **Web Dashboard**: Built using Streamlit, offering:
   - *Whole View*: Summary of forecasted prices for all vegetables across all markets.
   - *Filter View*: Allows filtering by specific markets, vegetables, or time periods.
-    <p><a href=https://vegetablepriceforecast-zhyq2hywjsa5s5z7gsfcz5.streamlit.app>View Dashboard</a></p>
+    <p><a href=https://vegetablepriceforecast-mwsndha8irmu4mxxagb3ge.streamlit.app/>View Dashboard</a></p>
 <p>For more details <a href=https://docs.google.com/presentation/d/1LEZe7c2trm3sAbfX1-pSIuCskcK1j9M7oUNRn2sRos8/edit?usp=sharing>view</a></p>
 
 ### Upcoming Milestones:
