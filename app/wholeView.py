@@ -22,9 +22,17 @@ def show_whole_view(today, dataframes, vegetables, markets):
     .st-emotion-cache-e370rw.e1vs0wn31 {
         visibility: hidden;
     }
+    .row-widget.stButton {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+    }
+    .st-emotion-cache-tpkba2.e1f1d6gn0 {
+        height: 80vh !important;
+    }
     </style>
     """,
-        unsafe_allow_html=True,
+        unsafe_allow_html=True
     )
 
     # Scrollable view with buttons arranged in three columns
@@ -68,7 +76,7 @@ def show_whole_view(today, dataframes, vegetables, markets):
         )
 
         with graph.container(height=516):
-            st.altair_chart(lineChart)
+            st.altair_chart(lineChart, use_container_width=True)
 
         for index, row in filteredDF.iterrows():
             with values.container(height=60):
@@ -76,6 +84,7 @@ def show_whole_view(today, dataframes, vegetables, markets):
 
         marketCol = st.columns(3)
         for idx, market in enumerate(visible_markets):
-            if marketCol[idx % 3].button(market, key=market):
-                st.session_state.selected_market = market
-                st.rerun()
+            with marketCol[idx % 3].container(height=70):
+                if st.button(market, key=market):
+                    st.session_state.selected_market = market
+                    st.rerun()
