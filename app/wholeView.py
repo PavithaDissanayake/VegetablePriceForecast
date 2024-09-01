@@ -5,35 +5,7 @@ import altair as alt
 def show_whole_view(today, dataframes, vegetables, markets):
     openView, scrollView = st.columns([3, 2])
 
-    st.markdown(
-        """
-    <style>
-    [data-testid="stMetricValue"] {
-        font-size: 18px;
-        color: aquamarine;
-    }
-    [data-testid="stMetric"] {
-        padding: 0px;
-    }
-    .st-emotion-cache-1l269bu.e1f1d6gn3 {
-        display: flex;
-        align-items: center;
-    }
-    .st-emotion-cache-e370rw.e1vs0wn31 {
-        visibility: hidden;
-    }
-    .row-widget.stButton {
-        display: flex;
-        flex-direction: row;
-        justify-content: center;
-    }
-    .st-emotion-cache-tpkba2.e1f1d6gn0 {
-        height: 80vh !important;
-    }
-    </style>
-    """,
-        unsafe_allow_html=True
-    )
+    st.html("./styles/wholeView.html")
 
     # Scrollable view with buttons arranged in three columns
     with scrollView.container(height=800):
@@ -45,6 +17,7 @@ def show_whole_view(today, dataframes, vegetables, markets):
 
         for idx, veg in enumerate(visible_vegetables):
             with st.container(height=150):
+                st.html(f'<span class="vegetablesDiv"></span>')
                 vegCols = st.columns(6)
                 if vegCols[0].button(veg, key=veg):
                     st.session_state.selected_vegetable = veg
@@ -59,7 +32,6 @@ def show_whole_view(today, dataframes, vegetables, markets):
     # Open view showing the selected vegetable's dataframe
     with openView.container(height=800):
         st.title(st.session_state.selected_vegetable)
-        graph, values = st.columns([4, 1])
 
         visible_markets = [market for market in markets if market != st.session_state.selected_market]
         df = dataframes[st.session_state.selected_vegetable]
@@ -70,21 +42,25 @@ def show_whole_view(today, dataframes, vegetables, markets):
             y=st.session_state.selected_market,
             tooltip=['Date:T', f'{st.session_state.selected_market}:Q']
         ).properties(
-            width=750,
-            height=480,
             title=f'{st.session_state.selected_market} Market Prices'
         )
 
-        with graph.container(height=516):
-            st.altair_chart(lineChart, use_container_width=True)
+        with st.container(height=516):
+            graph, values = st.columns([4, 1])
+            with graph.container(height=516):
+                st.altair_chart(lineChart, use_container_width=True)
 
-        for index, row in filteredDF.iterrows():
-            with values.container(height=60):
-                st.write(f"{row['Date'].strftime('%B %d')} - Rs. {row[st.session_state.selected_market]:.2f}")
+            with values.container():
+                st.html(f'<span class="valuesDiv"></span>')
+                for index, row in filteredDF.iterrows():
+                    with st.container(height=60):
+                        st.write(f"{row['Date'].strftime('%B %d')} - Rs. {row[st.session_state.selected_market]:.2f}")
 
-        marketCol = st.columns(3)
-        for idx, market in enumerate(visible_markets):
-            with marketCol[idx % 3].container(height=70):
-                if st.button(market, key=market):
-                    st.session_state.selected_market = market
-                    st.rerun()
+        with st.container():
+            marketCol = st.columns(3)
+            for idx, market in enumerate(visible_markets):
+                with marketCol[idx % 3].container(height=70):
+                    st.html(f'<span class="marketsDiv"></span>')
+                    if st.button(market, key=market):
+                        st.session_state.selected_market = market
+                        st.rerun()
