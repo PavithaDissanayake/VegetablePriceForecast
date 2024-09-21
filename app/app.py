@@ -19,6 +19,10 @@ for veg in vegetables:
     dataframes[veg]['Date'] = pd.to_datetime(dataframes[veg]['Date'])
     dataframes[veg]['Date'] = dataframes[veg]['Date'].dt.date
 
+if st.sidebar.button('change'):
+    dataframes['Beans'].loc[0, 'Bandarawela'] = 316
+    dataframes['Beans'].to_csv('./Data/Beans.csv', index=False)
+
 markets = dataframes['Beans'].columns[1:]
 
 # Initialize session state for selected vegetable and market
