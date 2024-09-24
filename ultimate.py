@@ -6,7 +6,12 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 import os
 
-st.set_page_config(layout="wide")
+st.set_page_config(
+    page_title='Vegetable Price Forecast System',
+    page_icon='🥦',
+    layout="wide",
+    initial_sidebar_state="auto"
+    )
 today = pd.Timestamp('2023-01-23')
 defaultStart = today.date() - pd.Timedelta(days=7)
 defaultEnd = today.date() + pd.Timedelta(days=7)
