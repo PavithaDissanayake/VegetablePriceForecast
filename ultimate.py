@@ -45,7 +45,7 @@ st.markdown(css, unsafe_allow_html=True)
 # db = firestore.client()
 
 folder = './Data'
-vegetables = [f.split('.')[0] for f in [f for f in os.listdir(folder) if f.endswith('.csv')]]
+vegetables = sorted([f.split('.')[0] for f in [f for f in os.listdir(folder) if f.endswith('.csv')]])
 
 # for veg in vegetables[-2:]:
 #     temp_df = pd.read_csv(f'./Data/{veg}.csv')
@@ -61,7 +61,7 @@ vegetable = data.selectbox('Select the vegetable', options=vegetables)
 df = pd.read_csv(f'./Data/{vegetable}.csv')
 df['Date'] = pd.to_datetime(df['Date']).dt.date
 
-markets = df.drop(columns='Date').columns
+markets = sorted(df.drop(columns='Date').columns)
 
 metric = data.columns(3)
 
