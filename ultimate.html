@@ -1,0 +1,29 @@
+<style>
+
+    div [data-testid='stVerticalBlock']:has(> div > .stHtml > .metricsDiv) {
+        background-color: divColor;
+        border-radius: 10px;
+        padding: 10px 10px;
+    }
+
+    div [data-testid='stVerticalBlock']:has(> div > .stHtml > .chartDiv) {
+        border: 3px solid divColor;
+        border-radius: 10px;
+        padding: 10px 10px;
+    }
+
+    div [data-testid='stVerticalBlock']:has(> div > .stHtml > .maxMarket) {
+        background-color: maxColor;
+        & [data-testid='stMetricDelta'] {
+            color: maxText !important;
+        }
+    }
+
+    div [data-testid='stVerticalBlock']:has(> div > .stHtml > .minMarket) {
+        background-color: minColor;
+        & [data-testid='stMetricDelta'] {
+            color: minText !important;
+        }
+    }
+
+</style>
