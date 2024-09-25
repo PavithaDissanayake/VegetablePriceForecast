@@ -26,4 +26,18 @@
         }
     }
 
+    div [data-testid='stVerticalBlock']:has(> div > .stHtml > .maxVegetable) {
+        background-color: maxColor;
+        & [data-testid='stMetricDelta'] {
+            color: maxText !important;
+        }
+    }
+
+    div [data-testid='stVerticalBlock']:has(> div > .stHtml > .minVegetable) {
+        background-color: minColor;
+        & [data-testid='stMetricDelta'] {
+            color: minText !important;
+        }
+    }
+
 </style>
