@@ -19,7 +19,7 @@ st.html('./styles/ultimate.html')
 # theme configuration
 theme = st_theme()
 
-base, primaryColor, div_color = 'light', '#ffd5d4', '#f0f0f0'
+base, primaryColor, div_color = 'dark', '#02ad39', '#262730'
 
 if theme is not None:
     base = theme['base']
