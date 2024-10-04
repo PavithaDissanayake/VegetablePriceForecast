@@ -1,1 +1,2 @@
-*.json
+firebase.json
+/.streamlit/secrets.toml
