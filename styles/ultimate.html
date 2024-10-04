@@ -12,28 +12,14 @@
         padding: 10px 10px;
     }
 
-    div [data-testid='stVerticalBlock']:has(> div > .stHtml > .maxMarket) {
+    div [data-testid='stVerticalBlock']:has(> div > .stHtml > .max) {
         background-color: maxColor;
         & [data-testid='stMetricDelta'] {
             color: maxText !important;
         }
     }
 
-    div [data-testid='stVerticalBlock']:has(> div > .stHtml > .minMarket) {
-        background-color: minColor;
-        & [data-testid='stMetricDelta'] {
-            color: minText !important;
-        }
-    }
-
-    div [data-testid='stVerticalBlock']:has(> div > .stHtml > .maxVegetable) {
-        background-color: maxColor;
-        & [data-testid='stMetricDelta'] {
-            color: maxText !important;
-        }
-    }
-
-    div [data-testid='stVerticalBlock']:has(> div > .stHtml > .minVegetable) {
+    div [data-testid='stVerticalBlock']:has(> div > .stHtml > .min) {
         background-color: minColor;
         & [data-testid='stMetricDelta'] {
             color: minText !important;
