@@ -8,6 +8,7 @@ import os
 from streamlit_extras.bottom_container import bottom
 from ultimate import vegetableVsMarket
 from ultimate2 import marketVsVegetable
+from insights import insights
 import json
 
 # page configuration
@@ -114,20 +115,20 @@ def getMarketData(vegetableData):
 with st.sidebar:
     st.title('Vegetable Price Forecast System')
     st.markdown('---')
-    view = st.radio('Select View', ['Market Prices of Vegetables', 'Vegetable Prices in Markets'])
+    view = st.radio('Select View', ['Market Prices of Vegetables', 'Vegetable Prices in Markets', 'Insights'])
     st.markdown('---')
-    language = st.selectbox('Select Language', ['English', 'Sinhala', 'Tamil'])
+    language = st.selectbox('Select Language', ['English', 'සිංහල', 'தமிழ்'])
 
-with st.spinner("You are the first customer of the day!\nPlease wait until we set things up for you"):
+with st.spinner("You are the first customer of the day! Please wait until we set things up for you"):
     vegetableDataframes = getVegetableData()
     marketDataframes = getMarketData(vegetableDataframes)
     markets = list(marketDataframes.keys())
 
 # Load translations based on selected language
-if language == 'Sinhala':
+if language == 'සිංහල':
     with open('./languages/sinhala.json', 'r', encoding='utf-8') as f:
         translations = json.load(f)
-elif language == 'Tamil':
+elif language == 'தமிழ்':
     with open('./languages/tamil.json', 'r', encoding='utf-8') as f:
         translations = json.load(f)
 else:
@@ -156,6 +157,8 @@ if view == 'Market Prices of Vegetables':
     vegetableVsMarket(today, defaultStart, defaultEnd, translatedVegetables, translated_vegetableDataframes, primaryColor, translations)
 elif view == 'Vegetable Prices in Markets':
     marketVsVegetable(today, defaultStart, defaultEnd, translatedMarkets, translated_marketDataframes, primaryColor, translations)
+elif view == 'Insights':
+    insights()
 
 with bottom():
     st.markdown('---')
