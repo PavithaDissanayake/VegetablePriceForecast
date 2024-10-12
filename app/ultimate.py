@@ -61,6 +61,7 @@ def create_bar_chart(data, start_date, end_date, markets, today, vegetable, tran
     Price = translations.get('Price', 'Price')
     Rs = translations.get('Rs.', 'Rs.')
 
+    data = data.copy()
     data.rename(columns={'Date': Date}, inplace=True)
 
     area_data = data.melt(id_vars=[Date], value_vars=markets, var_name=Market, value_name=Price)
@@ -168,7 +169,7 @@ def create_scatter_plot(data, start_date, end_date, markets, today, minValue, ma
 
     area_data = data.melt(id_vars=[Date], value_vars=markets, var_name=Market, value_name=Price)
 
-    past_data = area_data[area_data[Date] <= today.date()]
+    past_data = area_data[area_data[Date] < today.date()]
     future_data = area_data[area_data[Date] >= today.date()]
 
     num_days = (end_date - start_date).days
@@ -345,7 +346,7 @@ def vegetableVsMarket(today, defaultStart, defaultEnd, vegetables, dataframes, p
     # start and end dates for the chart
     start, end = plot.columns([1, 1])
     with start.container():
-        date_range = date_range_picker(title=translations.get("Select date range", "Select date range"), default_start=defaultStart, default_end=defaultEnd, min_date=df['Date'].min(), max_date=df['Date'].max())
+        date_range = date_range_picker(title=translations.get("Select date range", "Select date range"), default_start=max(defaultStart, df['Date'].min()), default_end=min(defaultEnd, df['Date'].max()), min_date=df['Date'].min(), max_date=df['Date'].max())
     
     start_date, end_date = pd.Timestamp(date_range[0]), pd.Timestamp(date_range[1])
 
