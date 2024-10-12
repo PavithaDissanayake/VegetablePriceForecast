@@ -2,5 +2,5 @@
 runOnSave = true
 
 [theme]
-base = 'dark'
+base = 'light'
 primaryColor = '#044334'
