@@ -3,7 +3,7 @@ from streamlit_extras.mandatory_date_range import date_range_picker
 from streamlit_extras.grid import grid
 import pandas as pd
 import altair as alt
-from Apex import apex_chart
+from helper.Apex import apex_chart
 import streamlit.components.v1 as components
 import firebase_admin
 from firebase_admin import credentials, firestore
@@ -188,7 +188,7 @@ with tabs[0]:
         highest_mean_vegetable = means.idxmax()
         lowest_mean_vegetable = means.idxmin()
         message = f"""
-        In the coming 3 month, {highest_mean_vegetable} is expected to have the highest average selling price.\n
+        In the coming 3 months, {highest_mean_vegetable} is expected to have the highest average selling price.\n
         While {lowest_mean_vegetable} is expected to have the lowest average selling price.\n
         {highest_mean_vegetable} would be a profitable choice to farm in for the next 3 months.
         """
