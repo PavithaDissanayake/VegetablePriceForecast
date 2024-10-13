@@ -31,6 +31,7 @@ def forecastTab(primaryDataframes, primary, secondaryDataframes, secondary, prim
     filtered_df = df[(df['Date'] >= date_range[0]) & (df['Date'] <= date_range[1])]
 
     forecastChart = forecastPlot(filtered_df, select2, select1, chartType, today)
+    
     with forecastGrid.container():
         components.html(forecastChart, height=400)
 
@@ -102,11 +103,34 @@ def forecastTab(primaryDataframes, primary, secondaryDataframes, secondary, prim
     metrics = getMetrics(primaryDataframes)
     metric = forecastGrid.columns(4)
     
-    colors = colors = ['#008ffb', '#00e396', '#feb019', '#ff4560', '#775dd0', '#546E7A', '#26a69a', '#D10CE8', '#FFD700', '#FF6347']
+    colors = ['#008ffb', '#00e396', '#feb019', '#ff4560', '#775dd0', '#546E7A', '#26a69a', '#D10CE8', '#FFD700', '#FF6347']
+    
+    def getColors(select, primary, secondary):
+        colorMap = {(sec, pri): 0 for pri in primary for sec in secondary}
+        for i, s in enumerate(select):
+            for p in primary:
+                colorMap[s, p] = colors[i]
+        k = len(select)
+        for i, s in enumerate(secondary):
+            flag = False
+            for p in primary:
+                if colorMap[s, p] == 0:
+                    colorMap[s, p] = colors[k]
+                    flag = True
+            k += 1 if flag else 0
+        return colorMap
+
+    if inverse:
+        colorMapI = getColors(select2, secondary, primary)
+        colorMap = {}
+        for a, b in list(colorMapI.keys()):
+            colorMap[b, a] = colorMapI[a, b]
+    else:
+        colorMap = getColors(select2, primary, secondary)
 
     for i, m in enumerate(primary):
         for j, v in enumerate(secondary):
             with metric[j % 4].container():
                 st.html('<span class="metric-div"></span>')
-                st.html(f'<span class="color-{colors[j][1:] if not inverse else colors[i][1:]}"></span>')
+                st.html(f'<span class="color-{colorMap[v, m][1:]}"></span>')
                 st.metric(label=f'{v} in {m}', label_visibility='visible', value='Rs.'+' {:.2f}'.format(metrics[v, m][0]), delta=round(metrics[v, m][1], 2), delta_color='normal' if metrics[v, m][1] != 0 else 'off')
