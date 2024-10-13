@@ -32,8 +32,10 @@ def apex_chart(title, type, curve, xaxis, lines, height, highlightPoint=None, hi
         return series
     
     strXAxis = ','.join(f"'{x}'" for x in xaxis)
-
-    data_length = max(len(data) for data in lines.values())
+    if len(lines) > 0:
+        data_length = max(len(data) for data in lines.values())
+    else:
+        data_length = 0
     no_data_warning = data_length < 50
 
     plot_options = ""

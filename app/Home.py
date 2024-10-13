@@ -30,8 +30,8 @@ with choice.container():
                 <div class="home-page-choice">
                     <h1>Are you a</h1>
                     <div class="choice">
-                        <a href="/farmer" class="button" target="_self">Farmer</a>
-                        <a href="/consumer" class="button" target="_self">Consumer</a> 
+                        <a href="/Consumer" class="button" target="_self">Consumer</a>
+                        <a href="/Farmer" class="button" target="_self">Farmer</a> 
                     </div>
                     <h1>?</h1>
                 </div>              
