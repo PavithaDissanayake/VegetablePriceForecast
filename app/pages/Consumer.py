@@ -6,7 +6,7 @@ from helper.historicalTab import historicalTab
 
 # page configuration
 st.set_page_config(
-    page_title='Vegetable Price Forecast System for Comsumers',
+    page_title='Vegetable Price Forecast System for Consumers',
     page_icon='🥦',
     layout="wide",
     initial_sidebar_state="collapsed"
