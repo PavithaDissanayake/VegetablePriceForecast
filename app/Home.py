@@ -44,7 +44,8 @@ with welcome.container():
     st.markdown(f"""
                 <div class="home-page-title">
                     <p>{language.get('Welcome to', 'Welcome to')}</p>
-                    <h1><a href="/" target="_self">{language.get('Vegetable Price Forecasting System', 'Vegetable Price Forecasting System')}</a></h1>
+                    <h1><a href="/" target="_self" class="name">VegeCast</a></h1>
+                    <h1>{language.get('Vegetable Price Forecasting System', 'Vegetable Price Forecasting System')}</h1>
                 </div>
                 """,
                 unsafe_allow_html=True)
