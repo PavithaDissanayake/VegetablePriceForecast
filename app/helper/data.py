@@ -8,14 +8,29 @@ from tensorflow.keras import models # type: ignore
 import pickle
 import numpy as np
 import os
+import pdfplumber
+import requests
+from io import BytesIO
+import re
+from statistics import mean
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+import pandas as pd
+from bs4 import BeautifulSoup
 
 # data folder
-folder = './Data/NewData'
+folder = './Data'
 vegetables = sorted([f.split('.')[0] for f in os.listdir(folder) if f.endswith('.csv')])
 
 # fetch data from firestore and local storage, combine and return
 @st.cache_data(show_spinner=False)
 def getVegetableData():
+
     if not firebase_admin._apps:
 
         firebase_credentials = {
@@ -36,7 +51,7 @@ def getVegetableData():
         firebase_admin.initialize_app(cred)
     db = firestore.client()
 
-    docs = db.collection('NewData').stream()
+    docs = db.collection('Data').stream()
     firebaseData = pd.DataFrame([doc.to_dict() for doc in docs]) # data stored in firebase
 
     vegetableDataframes = {}
@@ -54,6 +69,229 @@ def getVegetableData():
         vegetableDataframes[vegetable]['Date'] = pd.to_datetime(vegetableDataframes[vegetable]['Date']).dt.date
     
     return list(vegetableDataframes.keys()), vegetableDataframes
+
+def getNewVegData(date_range, vegetables, markets):
+
+    defaultDf = pd.DataFrame(date_range, columns=['Date'])
+    newDataframes = {}
+
+    for market in markets:
+        defaultDf[market] = 0
+
+    for vegetable in vegetables:
+        newDataframes[vegetable] = defaultDf.copy()
+
+    for i, date in enumerate(date_range):
+        try:
+            year = date.strftime('%Y')
+            month = date.strftime('%B')
+            dateStr = date.strftime('%d-%m-%Y')
+            url = f'https://www.harti.gov.lk/images/download/market_information/{year}/{month.lower()}/daily_{dateStr}.pdf'
+            response = requests.get(url)
+
+            if response.status_code != 200:
+                url = f'https://www.harti.gov.lk/images/download/market_information/{year}/{month}/daily_{dateStr}.pdf'
+                response = requests.get(url)
+            
+            if response.status_code != 200:
+                newDate = date.replace(year=date.year-1)
+                dateStr = newDate.strftime('%d-%m-%Y')
+                url = f'https://www.harti.gov.lk/images/download/market_information/{year}/daily/{month.lower()}/daily_{dateStr}.pdf'
+                response = requests.get(url)
+            
+            if response.status_code == 200:
+                pdf_data = BytesIO(response.content)
+                with pdfplumber.open(pdf_data) as pdf:
+                    if len(pdf.pages) == 2:
+                        page = pdf.pages[0]
+                    elif len(pdf.pages) >= 2:
+                        page = pdf.pages[1]
+                    
+                    tables = page.extract_tables()
+                    
+                    if tables:
+                        table = tables[0]
+                        df = pd.DataFrame(table)
+
+                        marketColumns = {}
+                        for col in range(len(df.columns)):
+                            for market in markets:
+                                if df.iloc[1, col] == f'{market}':
+                                    marketColumns[market] = col
+                                elif df.iloc[1, col] == f'{market}\nMarket':
+                                    marketColumns[market] = col
+
+                        for row in range(len(df)):
+                            for vegetable in vegetables:
+                                if df.iloc[row, 0] == vegetable:
+                                    for j, market in enumerate(markets):
+                                        value = df.iloc[row, marketColumns[market]]
+                                        value = round(mean([float(value) for value in re.findall(r'\d+\.?\d*', value)]), 2)
+                                        newDataframes[vegetable].iloc[i, j+1] = value
+                    else:
+                        continue
+            else:
+                print(f'failed to fetch data from {url}')
+                continue
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            continue  # This ensures the loop will continue even after an error
+
+    return newDataframes
+
+def getNewBuyRate(date_range):
+    # Set up headless Chrome options
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")  # Run in headless mode (without GUI)
+    chrome_options.add_argument("--disable-gpu")  # Disable GPU acceleration (optional)
+    chrome_options.add_argument("--window-size=1920,1080")  # Optional, to ensure the page has enough space
+
+    # Initialize the WebDriver with headless mode
+    service = Service(executable_path="./chromedriver.exe")
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+    defaultDf = pd.DataFrame(date_range, columns=['Date'])
+    defaultDf['Buy Rate'] = 0
+
+    try:
+        # Open the target URL
+        driver.get('https://www.cbsl.gov.lk/en/rates-and-indicators/exchange-rates/daily-buy-and-sell-exchange-rates')
+
+        # Switch to the iframe
+        iframe_element = driver.find_element(By.XPATH, "//iframe[@src='/cbsl_custom/exratestt/exratestt.php']")
+        driver.switch_to.frame(iframe_element)
+
+        # Wait for the first submit button to be clickable
+        submit_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.NAME, "submit_button"))
+        )
+        submit_button.click()
+
+        dates = len(date_range)
+        if dates == 1:
+            timeframe = None
+        elif dates <= 7:
+            timeframe = "1week"
+        elif dates <= 14:
+            timeframe = "2weeks"
+        elif dates <= 30:
+            timeframe = "1month"
+        elif dates <= 90:
+            timeframe = "3months"
+        elif dates <= 180:
+            timeframe = "6months"
+        else:
+            timeframe = "1year"
+
+        # Wait for the new layout to load and the corresponding button to be clickable
+        try:
+            # Wait for the new layout to load and the corresponding button to be clickable
+            one_week_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, f"//button[@onclick='setDateValues_{timeframe}();']"))
+            )
+            one_week_button.click()
+        except TimeoutException:
+            print(f"Timeout occurred while attempting to locate or click the button for timeframe '{timeframe}'.")
+
+        try:
+            # Locate the "United States Dollar" section by its <h2> tag
+            h2_usd = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, "//h2[text()=' United States Dollar ']"))
+            )
+
+            # Find the table following the <h2> tag
+            usd_table_element = h2_usd.find_element(By.XPATH, "following-sibling::div[@class='table-responsive']//table")
+
+            # Extract the table's HTML
+            usd_table_html = usd_table_element.get_attribute('outerHTML')
+
+            # Parse the table with BeautifulSoup and convert it to a pandas DataFrame
+            soup = BeautifulSoup(usd_table_html, 'html.parser')
+            usd_table = pd.read_html(str(soup))[0]
+            usd_table = usd_table[['Date', 'Buy Rate (LKR)']]
+            usd_table.rename(columns={'Buy Rate (LKR)': 'Buy Rate'}, inplace=True)
+            usd_table = usd_table.round(2)
+            usd_table['Date'] = pd.to_datetime(usd_table['Date']).dt.date
+            usd_table = usd_table[(usd_table['Date'] >= date_range[0].date()) & (usd_table['Date'] <= date_range[-1].date())]
+            usd_table = usd_table.set_index('Date').reindex(date_range).reset_index()
+            usd_table.rename(columns={'index': 'Date'}, inplace=True)
+            usd_table['Buy Rate'] = usd_table['Buy Rate'].fillna(0)
+
+        except TimeoutException:
+            print("Timeout occurred while locating or extracting the USD table.")
+            usd_table = None  # If we fail to get the table, return the default dataframe
+
+    finally:
+        # Quit the WebDriver
+        driver.quit()
+    
+    if usd_table is not None:
+        return usd_table
+    else:
+        return defaultDf
+
+def getNewData(_date_range, vegetables, markets):
+    newVegData = getNewVegData(_date_range, vegetables, markets)
+    newBuyRate = getNewBuyRate(_date_range)
+    newData = {}
+
+    for veg, df in newVegData.items():
+        newData[veg] = pd.merge(df, newBuyRate, on='Date', how='left')
+        newData[veg] = newData[veg].replace(0, np.nan)
+        newData[veg] = newData[veg].interpolate(method='linear', limit_direction='both')
+    
+    return newData    
+
+def writeNewData(newData):
+    for veg, df in newData.items():
+        df.set_index('Date', inplace=True)
+        for col in df.columns:
+            df.rename(columns={col: f'{col}_{veg}'}, inplace=True)
+            newData[veg] = df
+        
+    combined_df = pd.concat(newData.values(), axis=1)
+    combined_df.reset_index(inplace=True)
+    combined_df['Date'] = pd.to_datetime(combined_df['Date'])
+
+    if not firebase_admin._apps:
+
+        firebase_credentials = {
+            "type": st.secrets["firebase"]["type"],
+            "project_id": st.secrets["firebase"]["project_id"],
+            "private_key_id": st.secrets["firebase"]["private_key_id"],
+            "private_key": st.secrets["firebase"]["private_key"],
+            "client_email": st.secrets["firebase"]["client_email"],
+            "client_id": st.secrets["firebase"]["client_id"],
+            "auth_uri": st.secrets["firebase"]["auth_uri"],
+            "token_uri": st.secrets["firebase"]["token_uri"],
+            "auth_provider_x509_cert_url": st.secrets["firebase"]["auth_provider_x509_cert_url"],
+            "client_x509_cert_url": st.secrets["firebase"]["client_x509_cert_url"],
+            "universe_domain": st.secrets["firebase"]["universe_domain"]
+        }
+
+        cred = credentials.Certificate(firebase_credentials)
+        firebase_admin.initialize_app(cred)
+    db = firestore.client()
+
+    for _, row in combined_df.iterrows():
+        doc_id = str(row['Date'].date())
+        row_dict = row.to_dict()
+        db.collection('Data').document(doc_id).set(row_dict)
+
+@st.cache_data(show_spinner=False)
+def useNewData(start_date, end_date, vegetables, markets):
+    start_date = pd.to_datetime(start_date) + pd.Timedelta(days=1)
+    end_date = pd.to_datetime(end_date)
+    date_range = pd.date_range(start=start_date.date(), end=end_date.date())
+    newData = getNewData(date_range, vegetables, markets)
+    nullflag = False
+    for veg, df in newData.items():
+        if df.isnull().values.any():
+            nullflag = True
+    if not nullflag:
+        writeNewData(newData)
+    vegetables, vegetableDataframes = getVegetableData()
+    return vegetables, vegetableDataframes
 
 # convert data into market wise dataframes
 @st.cache_data(show_spinner=False)

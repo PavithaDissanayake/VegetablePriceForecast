@@ -1,10 +1,22 @@
 <style>
 
+    a[href="http://localhost:8501/Admin-Page"] {
+        display: none;
+    }
+
+    a[href="https://vegetablepriceforecast.streamlit.app/Admin-Page"] {
+        display: none;
+    }
+
     div [data-baseweb='tab-list'] {
         p {
             font-size: 20px;
             font-family: "Source Sans Pro", sans-serif;
         }
+    }
+
+    div [data-testid=stToast] {
+        background-color: #ffdfdd;
     }
 
     div [data-testid='stVerticalBlock']:has(> div > .stHtml > .metric-div) {
@@ -50,13 +62,12 @@
     }
 
     .insight-message {
-        border: 2px solid #B0BEC5;
         border-radius: 10px;
         height: auto;
         max-height: 350px;
         font-size: 18px;
         padding: 20px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.2);
         overflow-y: auto;
         margin: 20px 0;
         color: #424242;

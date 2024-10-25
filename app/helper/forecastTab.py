@@ -5,10 +5,17 @@ import pandas as pd
 from helper.plot import forecastPlot, insightPlot
 import streamlit.components.v1 as components
 
-def forecastTab(primaryDataframes, primary, secondaryDataframes, secondary, prime, second, today, inverse=False, farmerFlag=False):
-    forecastGrid = grid([1, 1, 1, 2, 0.7], 1, [1, 0.5, 2], vertical_align='center')
+def forecastTab(primaryDataframes, primary, secondaryDataframes, secondary, prime, second, today, language, inverse=False, farmerFlag=False):
+    forecastGrid = grid([1, 1, 1, 1.5, 1], 1, [1, 0.5, 2], vertical_align='bottom')
 
-    select1 = forecastGrid.selectbox(f'Select the {prime}', primary, key='forecastPrimary')
+    reverseLanguage = {v: k for k, v in language.items()}
+
+    select1 = forecastGrid.selectbox(
+        language.get(f'Select the {prime}', f'Select the {prime}'),
+        [language.get(p, p) for p in primary],
+        key='forecastPrimary')
+    select1 = reverseLanguage.get(select1, select1)
+
     df = primaryDataframes[select1]
     defaultStart = max(today.date() - pd.Timedelta(days=7), df['Date'].min())
     if farmerFlag:
@@ -17,20 +24,57 @@ def forecastTab(primaryDataframes, primary, secondaryDataframes, secondary, prim
     else:
         defaultEnd = min(today.date() + pd.Timedelta(days=30), df['Date'].max())
         forward = 30
+
+    minDate = defaultStart
+    maxDate = min(today.date() + pd.Timedelta(days=90), df['Date'].max())
     df['Date'] = pd.to_datetime(df['Date']).dt.date
     with forecastGrid.container():
-        date_range = date_range_picker('Select the Date Range', max_date=df['Date'].max(), min_date=df['Date'].min(), default_start=defaultStart, default_end=defaultEnd)
+        date_range = date_range_picker(
+            language.get('Select the Date Range', 'Select the Date Range'),
+            min_date=minDate,
+            max_date=maxDate,
+            default_start=defaultStart,
+            default_end=defaultEnd)
+        
     chartTypes = ['Area', 'Bar', 'Line', 'Scatter']
-    chartType = forecastGrid.selectbox('Select the Chart Type', chartTypes, key='chartType', index=2)
+    chartType = forecastGrid.selectbox(
+        language.get('Select the Chart Type', 'Select the Chart Type'),
+        [language.get(c, c) for c in chartTypes],
+        key='chartType',
+        index=2)
+    chartType = reverseLanguage.get(chartType, chartType)
+
     secondary_columns = [col for col in df.columns if col != 'Date']
-    select2 = forecastGrid.multiselect(f'Select the {second}', secondary_columns, secondary_columns, key='forecastSecondary')
-    secondarySwtich = forecastGrid.toggle(f'Select all {second}s', False, key='forecastSecondarySwitch')
-    if secondarySwtich:
-        select2 = secondary_columns
+    select2 = forecastGrid.multiselect(
+        language.get(f'Select the {second}s', f'Select the {second}s'),
+        [language.get(s, s) for s in secondary_columns],
+        [language.get(s, s) for s in secondary_columns],
+        key='forecastSecondary')
+    select2 = [reverseLanguage.get(s, s) for s in select2]
+
+    with forecastGrid.container():
+        secondarySwtich = st.toggle(
+            language.get(f'Select all {second}s', f'Select all {second}s'),
+            False,
+            key='forecastSecondarySwitch')
+        if secondarySwtich:
+            if select2 == secondary_columns:
+                st.toast(language.get(f'All {second.lower()}s are already selected', f'All {second.lower()}s are already selected'))
+            else:                
+                select2 = secondary_columns
+        timeSwich = st.toggle(
+            language.get('View full forecast', 'View full forecast'),
+            False,
+            key='forecastTimeSwitch')
+        if timeSwich:
+            if date_range[0] == minDate and date_range[1] == maxDate:
+                st.toast(language.get('Full forecast of 90 days is already in view', 'Full forecast of 90 days is already in view'))
+            else:
+                date_range = [minDate, maxDate]
 
     filtered_df = df[(df['Date'] >= date_range[0]) & (df['Date'] <= date_range[1])]
 
-    forecastChart = forecastPlot(filtered_df, select2, select1, chartType, today)
+    forecastChart = forecastPlot(filtered_df, select2, select1, chartType, today, language)
     
     with forecastGrid.container():
         components.html(forecastChart, height=400)
@@ -56,7 +100,7 @@ def forecastTab(primaryDataframes, primary, secondaryDataframes, secondary, prim
     next_df = next_df.sort_values(by='Date').reset_index(drop=True)
     columns = [col for col in next_df.columns if col != 'Date']
 
-    nextChart = insightPlot(next_df, columns)
+    nextChart = insightPlot(next_df, columns, language)
     
     with forecastGrid.container():
         components.html(nextChart, height=400)
@@ -71,15 +115,14 @@ def forecastTab(primaryDataframes, primary, secondaryDataframes, secondary, prim
 
     if farmerFlag:
         message = f"""
-        In the coming 3 montsh, {highest} is expected to have the highest average selling price.\n
-        While {lowest} is expected to have the lowest average selling price.\n
-        {highest} would be a profitable choice to farm in for the next 3 months.
+        {language.get('In the coming 3 months', 'In the coming 3 months')}, {language.get(highest, highest)} {language.get('is expected to have the highest average selling price', 'is expected to have the highest average selling price')}.\n
+        {language.get('While', 'While')} {language.get(lowest, lowest)} {language.get('is expected to have the lowest average selling price', 'is expected to have the lowest average selling price')}.\n
+        {language.get(highest, highest)} {language.get('could be a profitable choice to farm in for the next 3 months', 'could be a profitable choice to farm in for the next 3 months')}.
         """
     else:
         message = f"""
-        In the coming month, {lowest} is expected to be the cheapest in market.\n
-        While {highest} is expected to be the most expensive.\n
-        
+        {language.get('In the coming month', 'In the coming month')} {language.get(lowest, lowest)} {language.get('is expected to be the cheapest in market', 'is expected to be the cheapest in market')}.\n
+        {language.get('While', 'While')} {language.get(highest, highest)} {language.get('is expected to be the most expensive', 'is expected to be the most expensive')}.        
         """
 
     with forecastGrid.container():
@@ -133,4 +176,9 @@ def forecastTab(primaryDataframes, primary, secondaryDataframes, secondary, prim
             with metric[j % 4].container():
                 st.html('<span class="metric-div"></span>')
                 st.html(f'<span class="color-{colorMap[v, m][1:]}"></span>')
-                st.metric(label=f'{v} in {m}', label_visibility='visible', value='Rs.'+' {:.2f}'.format(metrics[v, m][0]), delta=round(metrics[v, m][1], 2), delta_color='normal' if metrics[v, m][1] != 0 else 'off')
+                st.metric(
+                    label=f'{language.get(f'{v} in {m}', f'{v} in {m}')}',
+                    label_visibility='visible',
+                    value=f'{language.get('Rs', 'Rs')}.'+' {:.2f}'.format(metrics[v, m][0]),
+                    delta=f'{language.get('Rs', 'Rs')}.'+' {:.2f}'.format(round(metrics[v, m][1], 2)),
+                    delta_color='normal' if metrics[v, m][1] != 0 else 'off')
