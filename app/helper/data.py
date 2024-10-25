@@ -13,13 +13,6 @@ import requests
 from io import BytesIO
 import re
 from statistics import mean
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
 import pandas as pd
 from bs4 import BeautifulSoup
 
@@ -141,94 +134,56 @@ def getNewVegData(date_range, vegetables, markets):
     return newDataframes
 
 def getNewBuyRate(date_range):
-    # Set up headless Chrome options
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")  # Run in headless mode (without GUI)
-    chrome_options.add_argument("--disable-gpu")  # Disable GPU acceleration (optional)
-    chrome_options.add_argument("--window-size=1920,1080")  # Optional, to ensure the page has enough space
-
-    # Initialize the WebDriver with headless mode
-    service = Service(executable_path="./chromedriver.exe")
-    driver = webdriver.Chrome(service=service, options=chrome_options)
     defaultDf = pd.DataFrame(date_range, columns=['Date'])
-    defaultDf['Buy Rate'] = 0
+    defaultDf['Buy Rate'] = 288.00
 
-    try:
-        # Open the target URL
-        driver.get('https://www.cbsl.gov.lk/en/rates-and-indicators/exchange-rates/daily-buy-and-sell-exchange-rates')
-
-        # Switch to the iframe
-        iframe_element = driver.find_element(By.XPATH, "//iframe[@src='/cbsl_custom/exratestt/exratestt.php']")
-        driver.switch_to.frame(iframe_element)
-
-        # Wait for the first submit button to be clickable
-        submit_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.NAME, "submit_button"))
-        )
-        submit_button.click()
-
-        dates = len(date_range)
-        if dates == 1:
-            timeframe = None
-        elif dates <= 7:
-            timeframe = "1week"
-        elif dates <= 14:
-            timeframe = "2weeks"
-        elif dates <= 30:
-            timeframe = "1month"
-        elif dates <= 90:
-            timeframe = "3months"
-        elif dates <= 180:
-            timeframe = "6months"
-        else:
-            timeframe = "1year"
-
-        # Wait for the new layout to load and the corresponding button to be clickable
-        try:
-            # Wait for the new layout to load and the corresponding button to be clickable
-            one_week_button = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, f"//button[@onclick='setDateValues_{timeframe}();']"))
-            )
-            one_week_button.click()
-        except TimeoutException:
-            print(f"Timeout occurred while attempting to locate or click the button for timeframe '{timeframe}'.")
-
-        try:
-            # Locate the "United States Dollar" section by its <h2> tag
-            h2_usd = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, "//h2[text()=' United States Dollar ']"))
-            )
-
-            # Find the table following the <h2> tag
-            usd_table_element = h2_usd.find_element(By.XPATH, "following-sibling::div[@class='table-responsive']//table")
-
-            # Extract the table's HTML
-            usd_table_html = usd_table_element.get_attribute('outerHTML')
-
-            # Parse the table with BeautifulSoup and convert it to a pandas DataFrame
-            soup = BeautifulSoup(usd_table_html, 'html.parser')
-            usd_table = pd.read_html(str(soup))[0]
-            usd_table = usd_table[['Date', 'Buy Rate (LKR)']]
-            usd_table.rename(columns={'Buy Rate (LKR)': 'Buy Rate'}, inplace=True)
-            usd_table = usd_table.round(2)
-            usd_table['Date'] = pd.to_datetime(usd_table['Date']).dt.date
-            usd_table = usd_table[(usd_table['Date'] >= date_range[0].date()) & (usd_table['Date'] <= date_range[-1].date())]
-            usd_table = usd_table.set_index('Date').reindex(date_range).reset_index()
-            usd_table.rename(columns={'index': 'Date'}, inplace=True)
-            usd_table['Buy Rate'] = usd_table['Buy Rate'].fillna(0)
-
-        except TimeoutException:
-            print("Timeout occurred while locating or extracting the USD table.")
-            usd_table = None  # If we fail to get the table, return the default dataframe
-
-    finally:
-        # Quit the WebDriver
-        driver.quit()
+    url = 'https://www.cbsl.gov.lk/en/rates-and-indicators/exchange-rates/daily-buy-and-sell-exchange-rates'
     
-    if usd_table is not None:
-        return usd_table
-    else:
-        return defaultDf
+    try:
+        # Send a GET request to the URL
+        response = requests.get(url)
+        response.raise_for_status()  # Raise an error for bad responses
+
+        # Parse the HTML content with BeautifulSoup
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # Locate the "United States Dollar" section by its <h2> tag
+        h2_usd = soup.find('h2', text=' United States Dollar ')
+        
+        # Find the table following the <h2> tag
+        usd_table_element = h2_usd.find_next_sibling('div', class_='table-responsive').find('table')
+
+        # Extract the table rows
+        rows = usd_table_element.find_all('tr')
+
+        # Prepare a list to hold the data
+        data = []
+
+        # Loop through the rows and extract data
+        for row in rows[1:]:  # Skip header
+            cols = row.find_all('td')
+            date = cols[0].text.strip()
+            buy_rate = cols[1].text.strip().replace(',', '')  # Remove commas for conversion
+            data.append({'Date': date, 'Buy Rate': float(buy_rate)})
+
+        # Create a DataFrame from the scraped data
+        usd_table = pd.DataFrame(data)
+        usd_table['Date'] = pd.to_datetime(usd_table['Date']).dt.date
+
+        # Filter the DataFrame based on the date_range
+        usd_table = usd_table[(usd_table['Date'] >= date_range[0].date()) & 
+                              (usd_table['Date'] <= date_range[-1].date())]
+
+        # Reindex the DataFrame to include all dates in the date_range
+        usd_table = usd_table.set_index('Date').reindex(date_range).reset_index()
+        usd_table.rename(columns={'index': 'Date'}, inplace=True)
+        usd_table['Buy Rate'] = usd_table['Buy Rate'].fillna(288)
+
+        return usd_table  # Return the scraped DataFrame
+
+    except Exception as e:  # Catch any exception that occurs
+        print(f"An error occurred: {e}")  # Optionally log the error
+        return defaultDf  # Return the default DataFrame on error
 
 def getNewData(_date_range, vegetables, markets):
     newVegData = getNewVegData(_date_range, vegetables, markets)
