@@ -23,9 +23,9 @@ vegetables = sorted([f.split('.')[0] for f in os.listdir(folder) if f.endswith('
 # fetch data from firestore and local storage, combine and return
 @st.cache_data(show_spinner=False)
 def getVegetableData():
-
+    # Check if Firebase is already initialized
     if not firebase_admin._apps:
-
+        # Retrieve Firebase credentials from Streamlit secrets
         firebase_credentials = {
             "type": st.secrets["firebase"]["type"],
             "project_id": st.secrets["firebase"]["project_id"],
@@ -40,40 +40,53 @@ def getVegetableData():
             "universe_domain": st.secrets["firebase"]["universe_domain"]
         }
 
+        # Initialize Firebase app with the provided credentials
         cred = credentials.Certificate(firebase_credentials)
         firebase_admin.initialize_app(cred)
+
+    # Create a Firestore client
     db = firestore.client()
 
+    # Fetch all documents from the 'Data' collection in Firestore
     docs = db.collection('Data').stream()
+    # Convert Firestore documents to a DataFrame
     firebaseData = pd.DataFrame([doc.to_dict() for doc in docs]) # data stored in firebase
 
     vegetableDataframes = {}
+    # Iterate over each vegetable to extract and process data
     for vegetable in vegetables:
+        # Identify market columns associated with the current vegetable
         markets = [column for column in firebaseData.columns if vegetable in column]
+        # Create a temporary DataFrame with relevant market data
         firebaseTempData = firebaseData[['Date'] + markets].copy()
+        # Convert 'Date' column to datetime format
         firebaseTempData['Date'] = pd.to_datetime(firebaseTempData['Date'], format='%d %B %Y at %H:%M:%S %Z%z', errors='coerce', utc=True).dt.date
         for market in markets:
             firebaseTempData.rename(columns={market: market.split('_')[0]}, inplace=True)
 
+        # Load local CSV data for the current vegetable
         githubData = pd.read_csv(f'{folder}/{vegetable}.csv') # data stored local
         githubData['Date'] = pd.to_datetime(githubData['Date']).dt.date
 
+        # Concatenate GitHub and Firebase data for the current vegetable
         vegetableDataframes[vegetable] = pd.concat([githubData, firebaseTempData], axis=0) # concatenate
         vegetableDataframes[vegetable]['Date'] = pd.to_datetime(vegetableDataframes[vegetable]['Date']).dt.date
     
     return list(vegetableDataframes.keys()), vegetableDataframes
 
 def getNewVegData(date_range, vegetables, markets):
-
+    # Create a default DataFrame with dates and initialize market columns
     defaultDf = pd.DataFrame(date_range, columns=['Date'])
     newDataframes = {}
-
+# Create a default DataFrame with dates and initialize market columns
     for market in markets:
         defaultDf[market] = 0
 
+    # Prepare a new DataFrame for each vegetable
     for vegetable in vegetables:
         newDataframes[vegetable] = defaultDf.copy()
 
+    # Iterate through each date in the specified date range
     for i, date in enumerate(date_range):
         try:
             year = date.strftime('%Y')
@@ -91,21 +104,25 @@ def getNewVegData(date_range, vegetables, markets):
                 dateStr = newDate.strftime('%d-%m-%Y')
                 url = f'https://www.harti.gov.lk/images/download/market_information/{year}/daily/{month.lower()}/daily_{dateStr}.pdf'
                 response = requests.get(url)
-            
+
+            # If the response is successful, process the PDF
             if response.status_code == 200:
                 pdf_data = BytesIO(response.content)
                 with pdfplumber.open(pdf_data) as pdf:
+                    # Select the appropriate page from the PDF
                     if len(pdf.pages) == 2:
                         page = pdf.pages[0]
                     elif len(pdf.pages) >= 2:
                         page = pdf.pages[1]
                     
+                    # Extract tables from the selected page
                     tables = page.extract_tables()
                     
                     if tables:
                         table = tables[0]
                         df = pd.DataFrame(table)
 
+                        # Map market names to their respective column indices
                         marketColumns = {}
                         for col in range(len(df.columns)):
                             for market in markets:
@@ -114,6 +131,7 @@ def getNewVegData(date_range, vegetables, markets):
                                 elif df.iloc[1, col] == f'{market}\nMarket':
                                     marketColumns[market] = col
 
+                        # Populate the newDataframes with extracted values
                         for row in range(len(df)):
                             for vegetable in vegetables:
                                 if df.iloc[row, 0] == vegetable:
@@ -129,14 +147,16 @@ def getNewVegData(date_range, vegetables, markets):
 
         except Exception as e:
             print(f"An error occurred: {e}")
-            continue  # This ensures the loop will continue even after an error
+            continue  # Continue the loop even after an error
 
     return newDataframes
 
 def getNewBuyRate(date_range):
+    # Create a default DataFrame with dates and a default buy rate
     defaultDf = pd.DataFrame(date_range, columns=['Date'])
     defaultDf['Buy Rate'] = 288.00
 
+    # URL of the page containing exchange rates
     url = 'https://www.cbsl.gov.lk/en/rates-and-indicators/exchange-rates/daily-buy-and-sell-exchange-rates'
     
     try:
@@ -186,10 +206,12 @@ def getNewBuyRate(date_range):
         return defaultDf  # Return the default DataFrame on error
 
 def getNewData(_date_range, vegetables, markets):
+    # Fetch new vegetable data and the latest buy rate
     newVegData = getNewVegData(_date_range, vegetables, markets)
     newBuyRate = getNewBuyRate(_date_range)
     newData = {}
 
+    # Merge vegetable data with buy rates and handle missing values
     for veg, df in newVegData.items():
         newData[veg] = pd.merge(df, newBuyRate, on='Date', how='left')
         newData[veg] = newData[veg].replace(0, np.nan)
@@ -198,16 +220,19 @@ def getNewData(_date_range, vegetables, markets):
     return newData    
 
 def writeNewData(newData):
+    # Rename columns for each vegetable dataframe and set 'Date' as index
     for veg, df in newData.items():
         df.set_index('Date', inplace=True)
         for col in df.columns:
             df.rename(columns={col: f'{col}_{veg}'}, inplace=True)
             newData[veg] = df
         
+    # Combine all vegetable dataframes into a single dataframe
     combined_df = pd.concat(newData.values(), axis=1)
     combined_df.reset_index(inplace=True)
     combined_df['Date'] = pd.to_datetime(combined_df['Date'])
 
+    # Initialize Firebase if not already done
     if not firebase_admin._apps:
 
         firebase_credentials = {
@@ -228,6 +253,7 @@ def writeNewData(newData):
         firebase_admin.initialize_app(cred)
     db = firestore.client()
 
+    # Write each row of the combined dataframe to Firebase
     for _, row in combined_df.iterrows():
         doc_id = str(row['Date'].date())
         row_dict = row.to_dict()
@@ -235,16 +261,25 @@ def writeNewData(newData):
 
 @st.cache_data(show_spinner=False)
 def useNewData(start_date, end_date, vegetables, markets):
+    # Convert start and end dates to datetime and create a date range
     start_date = pd.to_datetime(start_date) + pd.Timedelta(days=1)
     end_date = pd.to_datetime(end_date)
     date_range = pd.date_range(start=start_date.date(), end=end_date.date())
+    
+    # Fetch new data for the specified date range, vegetables, and markets
     newData = getNewData(date_range, vegetables, markets)
     nullflag = False
+
+    # Check for any null values in the new data
     for veg, df in newData.items():
         if df.isnull().values.any():
             nullflag = True
+    
+    # If no null values, write new data to Firebase
     if not nullflag:
         writeNewData(newData)
+
+    # Retrieve existing vegetable data
     vegetables, vegetableDataframes = getVegetableData()
     return vegetables, vegetableDataframes
 
@@ -252,6 +287,7 @@ def useNewData(start_date, end_date, vegetables, markets):
 @st.cache_data(show_spinner=False)
 def getMarketData(vegetableData):
     marketDataframes = {}
+    # Loop through each vegetable to organize data by market
     for vegetable in vegetables:
         dataframe = vegetableData[vegetable]
         for market in dataframe.columns[1:]:
@@ -259,6 +295,8 @@ def getMarketData(vegetableData):
                 marketDataframes[market] = pd.DataFrame()
                 marketDataframes[market]['Date'] = dataframe['Date']
             marketDataframes[market][vegetable] = dataframe[market]
+            
+    # Return the list of markets and their dataframes
     return list(marketDataframes.keys()), marketDataframes
 
 # forecast the future prices

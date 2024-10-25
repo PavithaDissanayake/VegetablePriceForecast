@@ -4,6 +4,7 @@ import pandas as pd
 import firebase_admin
 from firebase_admin import credentials, firestore
 
+# Initialize session state variables for admin access, forecasting, and data transfer
 if 'admin' not in st.session_state:
     st.session_state['admin'] = False
 if 'forecast' not in st.session_state:
@@ -11,6 +12,7 @@ if 'forecast' not in st.session_state:
 if 'transfer' not in st.session_state:
     st.session_state['transfer'] = False
 
+# Set layout and icon based on admin state
 if st.session_state['admin'] == False:
     width = 'centered'
     icon = '🔒'
@@ -18,6 +20,7 @@ else:
     width = 'wide'
     icon = '🔓'
 
+# Configure the Streamlit page
 st.set_page_config(
     page_title='Admin Page',
     page_icon=icon,
@@ -25,33 +28,38 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Load custom HTML for admin page styling
 st.html('./styles/Admin-Page.html')
 
+# Admin login logic
 if st.session_state['admin'] == False:
     with st.container():
         st.html('<span class="admin-password-container"></span>')
         st.title("Admin Login")
         password = st.text_input('Please enter the password to access the admin panel', type='password')
         if password == st.secrets['admin']['password']:
-            st.session_state['admin'] = True
-            st.rerun()
+            st.session_state['admin'] = True  # Grant admin access
+            st.rerun()  # Refresh the page to show admin content
         elif password:
-            st.warning('Incorrect password! Please try again.')
+            st.warning('Incorrect password! Please try again.')  # Handle incorrect password
 else:
+    # Admin dashboard with tabs for data management
     tabs = st.tabs(['Current Data', 'App Management'])
     with tabs[0]:
-        today = pd.Timestamp.now()
-        with st.spinner('Fetching data...'):
-            vegetables, vegetableDataframes = getVegetableData()
+        today = pd.Timestamp.now()  # Get today's date
+        with st.spinner('Fetching data...'):  # Show spinner while fetching data
+            vegetables, vegetableDataframes = getVegetableData()  # Fetch vegetable data
 
-        markets = vegetableDataframes[vegetables[0]].columns[1:-1]
+        markets = vegetableDataframes[vegetables[0]].columns[1:-1]  # Get market names
         vegetableDataframes[vegetables[0]]['Date'] = pd.to_datetime(vegetableDataframes[vegetables[0]]['Date']).dt.date
-        maxDate = vegetableDataframes[vegetables[0]]['Date'].max()
+        maxDate = vegetableDataframes[vegetables[0]]['Date'].max()  # Get the latest date in the data
 
+        # If the latest date is not today, fetch new data
         if maxDate != today.date():
             with st.spinner('Fetching new data...'):
                 vegetables, vegetableDataframes = useNewData(maxDate.strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'), vegetables, markets.to_list())
 
+        # Forecast prices for each vegetable
         for vegetable in vegetables:
             with st.spinner(f"Vegetable prices forecasting {vegetables.index(vegetable)+1}/{len(vegetables)}..."):
                 vegetableDataframes[vegetable] = forecast(vegetable, vegetableDataframes[vegetable])
@@ -59,47 +67,48 @@ else:
         beforeData = {}
         afterData = {}
         for veg, df in vegetableDataframes.items():
-            beforeData[veg] = df[df['Date'] < today.date()].reset_index(drop=True)
-            afterData[veg] = df[df['Date'] >= today.date()].reset_index(drop=True)
+            beforeData[veg] = df[df['Date'] < today.date()].reset_index(drop=True)  # Historical data
+            afterData[veg] = df[df['Date'] >= today.date()].reset_index(drop=True)  # Forecasted data
 
+        # Display data in columns
         columns = st.columns(2)
         for i, vegetable in enumerate(vegetables):
             with columns[i//2].container():
                 st.html('<span class="admin-data-container"></span>')
                 st.title(vegetable)
-                before, after = st.columns(2)
+                before, after = st.columns(2)  # Two columns for before and after data
                 with before.container():
                     st.html('<span class="individual-data-container"></span>')
                     st.write('Latest available data')
-                    st.dataframe(beforeData[vegetable], use_container_width=True, hide_index=True)
+                    st.dataframe(beforeData[vegetable], use_container_width=True, hide_index=True)  # Display historical data
                 with after.container():
                     st.html('<span class="individual-data-container"></span>')
                     st.write('90 days forecasted data')
-                    st.dataframe(afterData[vegetable], use_container_width=True, hide_index=True)
+                    st.dataframe(afterData[vegetable], use_container_width=True, hide_index=True)  # Display forecast data
                 
     with tabs[1]:
         st.title('App Management')
-        forecast, trasnfer = st.columns(2)
+        forecast, trasnfer = st.columns(2)  # Columns for forecast and transfer options
         with forecast.container():
             st.html('<span class="admin-forecast-container"></span>')
             with st.container():
                 st.html('<span class="admin-forecast-button-container"></span>')
-                if st.button('Trigger new forecast'):
+                if st.button('Trigger new forecast'):  # Button to trigger forecasting
                     st.session_state['forecast'] = True
             if st.session_state['forecast']:
-                csv, code = st.columns([2, 3])
+                csv, code = st.columns([2, 3])  # Columns for CSV download and code display
                 with csv.container():
                     st.html('<span class="admin-forecast-csv-container"></span>')
                     for veg, df in beforeData.items():
                         dfCSV = df.to_csv(index=False).encode('utf-8')                    
-                        st.download_button(f'Download {veg} dataframe', dfCSV, f'{veg}.csv', 'csv', key=f'{veg}_pickle')
+                        st.download_button(f'Download {veg} dataframe', dfCSV, f'{veg}.csv', 'csv', key=f'{veg}_pickle')  # CSV download button
                 csv.markdown("""
                             <a href="https://github.com/PavithaDissanayake/VegetablePriceForecast/tree/main/Models" class="pickle-button" target="_blank">Click here to save the new models</a>
                              """, unsafe_allow_html=True)
 
                 with code.container(height=500):
                     st.html('<span class="admin-forecast-code-container"></span>')
-                    st.write("Use this code for forecasting")
+                    st.write("Use this code for forecasting")  # Display forecasting code
                     code = """
                             def train_bilstm_model(dataframe, seq_length=30, tuner_directory='my_dir/bilstm_hyperparameter_tuning', save_path='best_model.pkl'):
                             # Convert 'Date' to datetime format
@@ -212,6 +221,7 @@ else:
                             """
                     st.code(code, language='python')
                     
+        # Transfer data to GitHub
         with trasnfer.container():
             st.html('<span class="admin-transfer-container"></span>')
             with st.container():
@@ -221,8 +231,10 @@ else:
             if st.session_state['transfer']:
                 lastYear = {}
                 thisYear = {}
-                splitDate1 = pd.Timestamp(today.year-1, 1, 1).date()
-                splitDate2 = pd.Timestamp(today.year, 1, 1).date()
+                splitDate1 = pd.Timestamp(today.year-1, 1, 1).date()  # Start date for this year’s data
+                splitDate2 = pd.Timestamp(today.year, 1, 1).date()    # Start date for last year’s data
+                
+                # Collect data for last year
                 for veg, df in vegetableDataframes.items():
                     lastYear[veg] = df[df['Date'] < splitDate2].reset_index(drop=True)
 
@@ -230,6 +242,7 @@ else:
 
                 with github.container():
                     st.html('<span class="admin-transfer-github-container"></span>')
+                    # Provide download options for last year's data
                     for veg, df in lastYear.items():
                         dfCSV = df.to_csv(index=False).encode('utf-8')                    
                         st.download_button(f'Download old {veg} dataframe', dfCSV, f'{veg}.csv', 'csv', key=f'{veg}_github')
@@ -242,6 +255,7 @@ else:
                     st.html('<span class="admin-transfer-firebase-container"></span>')
                     st.warning("Pressing this button will delete all the data in the Firestore database and transfer this year's data. Please proceed with caution.")
                     if st.button("Transfer this year's data into firestore"):
+                        # Prepare this year's data for transfer
                         for veg, df in lastYear.items():
                             df = df[df['Date'] >= splitDate1].reset_index(drop=True)
                             df.set_index('Date', inplace=True)
@@ -255,6 +269,7 @@ else:
                         if not firebase_admin._apps:
 
                             firebase_credentials = {
+                                # Initialize Firebase if not already done
                                 "type": st.secrets["firebase"]["type"],
                                 "project_id": st.secrets["firebase"]["project_id"],
                                 "private_key_id": st.secrets["firebase"]["private_key_id"],
@@ -272,6 +287,7 @@ else:
                             firebase_admin.initialize_app(cred)
                         db = firestore.client()
 
+                        # Delete old records from Firestore
                         for _, row in combined_df.iterrows():
                             doc_id = str(row['Date'].date())
                             db.collection('Data').document(doc_id).delete()
