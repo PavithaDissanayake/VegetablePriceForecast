@@ -31,8 +31,11 @@ def forecastTab(primaryDataframes, primary, secondaryDataframes, secondary, prim
         defaultEnd = min(today.date() + pd.Timedelta(days=30), df['Date'].max())
         forward = 30
 
+    print(f"today: {today.date()}")
     minDate = defaultStart
+    print(f"minDate: {minDate}")
     maxDate = min(today.date() + pd.Timedelta(days=90), df['Date'].max())
+    print(f"maxDate: {maxDate}")
     df['Date'] = pd.to_datetime(df['Date']).dt.date  # Ensure the 'Date' column is in date format
 
     # Create a date range picker for user input
