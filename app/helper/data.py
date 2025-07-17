@@ -78,7 +78,7 @@ def getNewVegData(date_range, vegetables, markets):
     # Create a default DataFrame with dates and initialize market columns
     defaultDf = pd.DataFrame(date_range, columns=['Date'])
     newDataframes = {}
-# Create a default DataFrame with dates and initialize market columns
+    # Create a default DataFrame with dates and initialize market columns
     for market in markets:
         defaultDf[market] = 0
 
@@ -96,10 +96,22 @@ def getNewVegData(date_range, vegetables, markets):
             response = requests.get(url)
 
             if response.status_code != 200:
+                print(f'failed to fetch data from {url}')
                 url = f'https://www.harti.gov.lk/images/download/market_information/{year}/{month}/daily_{dateStr}.pdf'
+                response = requests.get(url)
+
+            if response.status_code != 200:
+                print(f'failed to fetch data from {url}')
+                url = f'https://www.harti.gov.lk/images/download/market_information/{year}/daily/daily_{dateStr}.pdf'
+                response = requests.get(url)
+
+            if response.status_code != 200:
+                print(f'failed to fetch data from {url}')
+                url = f'https://www.harti.gov.lk/images/download/market_information/{year}/daily/{month}/daily_{dateStr}.pdf'
                 response = requests.get(url)
             
             if response.status_code != 200:
+                print(f'failed to fetch data from {url}')
                 newDate = date.replace(year=date.year-1)
                 dateStr = newDate.strftime('%d-%m-%Y')
                 url = f'https://www.harti.gov.lk/images/download/market_information/{year}/daily/{month.lower()}/daily_{dateStr}.pdf'
