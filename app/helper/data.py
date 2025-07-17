@@ -109,6 +109,11 @@ def getNewVegData(date_range, vegetables, markets):
                 print(f'failed to fetch data from {url}')
                 url = f'https://www.harti.gov.lk/images/download/market_information/{year}/daily/{month}/daily_{dateStr}.pdf'
                 response = requests.get(url)
+
+            if response.status_code != 200:
+                print(f'failed to fetch data from {url}')
+                url = f'https://www.harti.gov.lk/images/download/market_information/{year}/daily/{month.lower()}/daily_{dateStr}.pdf'
+                response = requests.get(url)
             
             if response.status_code != 200:
                 print(f'failed to fetch data from {url}')
@@ -119,6 +124,7 @@ def getNewVegData(date_range, vegetables, markets):
 
             # If the response is successful, process the PDF
             if response.status_code == 200:
+                print(f'Successfully fetched data from {url}')
                 pdf_data = BytesIO(response.content)
                 with pdfplumber.open(pdf_data) as pdf:
                     # Select the appropriate page from the PDF
