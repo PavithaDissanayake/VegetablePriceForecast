@@ -340,6 +340,7 @@ def forecast(vegetable, df):
     # forecast in a loop
     for i in range(shift):
         X = last_7_days[np.newaxis, :, :]
+        print(X)
         prediction = model.predict(X)
         future_predictions.append(prediction[0])
         last_7_days = np.vstack([last_7_days[1:], np.append(prediction, scaled_future_buy_rate_lagged[i])])
